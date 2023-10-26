@@ -48,11 +48,11 @@ class ProfitabilityLevel(Hashable):
     def __str__(self):
         return f"product {self.p_name} has a profitable level of {self.lvl}" 
 
-E.add_constraint((ProfitabilityLevel(PRODUCT_NAME, 1)&(MarketableLevel(PRODUCT_NAME, 2)))
-                 |(ProfitabilityLevel(PRODUCT_NAME,2)&InnovationLevel(PRODUCT_NAME,2))
-                 |(InnovationLevel(PRODUCT_NAME, 1)&MarketableLevel(PRODUCT_NAME,2))
-                 |(InnovationLevel(PRODUCT_NAME, 2)&MarketableLevel(PRODUCT_NAME,1),ProfitabilityLevel(PRODUCT_NAME, 1))
-                 |(ProfitabilityLevel(PRODUCT_NAME, 2)&MarketableLevel(PRODUCT_NAME, 1)))
+E.add_constraint(ProfitabilityLevel(PRODUCT_NAME, 1)&MarketableLevel(PRODUCT_NAME, 2)
+                 |ProfitabilityLevel(PRODUCT_NAME,2)&InnovationLevel(PRODUCT_NAME,2)
+                 |InnovationLevel(PRODUCT_NAME, 1)&MarketableLevel(PRODUCT_NAME,2)
+                 |InnovationLevel(PRODUCT_NAME, 2)&MarketableLevel(PRODUCT_NAME,1)&ProfitabilityLevel(PRODUCT_NAME, 1)
+                 |ProfitabilityLevel(PRODUCT_NAME, 2)&MarketableLevel(PRODUCT_NAME, 1))
 
 #Market types
 pure_competition = Var(f"{PRODUCT_NAME} is in market Pure Competition")
@@ -60,64 +60,92 @@ monopolistic = Var(f"{PRODUCT_NAME} is in market Monopolistic Competition")
 monopoly = Var(f"{PRODUCT_NAME} is in market Monopoly")
 oligopoly = Var(f"{PRODUCT_NAME} is in market Oligopoly")
 
-E.add_constraint(pure_competition|monopolistic|monopoly|oligopoly)
-
 #Other propositions
 seasonal_demand = Var(f"{PRODUCT_NAME} is in seasonal demand")
 competitive_price = Var(f"{PRODUCT_NAME} has a competitive price")
 unique_product = Var(f"{PRODUCT_NAME} is a unique product")
 unique_market = Var(f"{PRODUCT_NAME} is unique in its market")
 credible = Var(f"{PRODUCT_NAME} is credible")
-saturated = Var(f"{PRODUCT_NAME} is saturated")
+low_cost = Var(f"{PRODUCT_NAME} is low-cost")
+
 
 #TODO: manually enter other propositions
+def productProps():
+    #NOTE:this block of code is for testing
+    #assume product is in seasonal_demand, and is a unique product what else does the product need in order to be winnable
+    E.add_constraint(seasonal_demand&unique_product)
+    
+    #given that product is in pure_competition market:
+    E.add_constraint(pure_competition)
+    #***
+    
+    return
 
-def complex_constraints():
-    #a unique level of 2 means the product has a unique nature and is in a unique market, if it's only true for one of the two then product only has marketable level of 1
-    E.add_constraint((unique_market&unique_product)>>MarketableLevel(PRODUCT_NAME, 2))
-    E.add_constraint(unique_market>>MarketableLevel(PRODUCT_NAME, 1))
-    E.add_constraint(unique_product>>(MarketableLevel(PRODUCT_NAME, 1)&InnovationLevel(PRODUCT_NAME, 1)))
+def positive_constraints():
+    #a unique level of 2 means the product has a unique nature and is in a unique market, if it's only true for one of the two then product only has marketable level of 1 (this happens only if the product is in markets/ conditions that allows it to be marketable)
+    E.add_constraint(~unique_market|~unique_product|MarketableLevel(PRODUCT_NAME, 2))
+    E.add_constraint((~unique_market|pure_competition|seasonal_demand|competitive_price|MarketableLevel(PRODUCT_NAME, 1))&(~unique_market|~monopolistic|InnovationLevel(PRODUCT_NAME, 1)))
+    E.add_constraint(~unique_product|pure_competition|seasonal_demand|competitive_price|MarketableLevel(PRODUCT_NAME, 1))
+    #Seasonal demand implies product is set to be of MarketableLevel 1
+    E.add_constraint(~seasonal_demand|MarketableLevel(PRODUCT_NAME,1))
+    
+    #an InnovationLevel of 2 means the product is credible and has InnovationLevel of 1 and is in the market where an InnovationLevel of 2 exists
+    E.add_constraint(monopolistic|~InnovationLevel(PRODUCT_NAME, 1)|~credible|oligopoly|InnovationLevel(PRODUCT_NAME, 2))
 
-def build_theory():
+    #Profitability level 2 if the product is low-cost and is unique in the market and is credible and is in the markets/conditions that allows it to have the profitability level of 2
+    E.add_constraint(~low_cost|~unique_market|competitive_price|seasonal_demand|monopoly|ProfitabilityLevel(PRODUCT_NAME, 2))
+    E.add_constraint(~low_cost|ProfitabilityLevel(PRODUCT_NAME, 1))
+    
+    
+    
 
+def negative_constraints():
+
+    #competitive price means low revenue means low profit margin means profitable level cannot be 2
+    E.add_constraint(~competitive_price|~ProfitabilityLevel(PRODUCT_NAME, 2))
+
+def env_constraints():
     #A product can only be in one of the four market types:
-    # E.add_constraint(pure_competition >> (~monopolistic & ~monopoly & ~oligopoly)) 
-    # E.add_constraint(monopolistic >> ( ~pure_competition & ~monopoly & ~oligopoly))
-    # E.add_constraint(monopoly >> (~monopolistic & ~pure_competition & ~oligopoly))
-    # E.add_constraint(oligopoly >> (~monopolistic & ~monopoly & ~pure_competition))
+    E.add_constraint((~pure_competition | ~monopolistic)&(~pure_competition | ~monopoly) & (~pure_competition | ~oligopoly)) 
+    E.add_constraint((~monopolistic |  ~pure_competition) & (~monopolistic | ~monopoly) & (~monopolistic | ~oligopoly))
+    E.add_constraint((~monopoly | ~monopolistic) & (~monopoly | ~pure_competition) & (~monopoly |~oligopoly))
+    E.add_constraint((~oligopoly | ~monopolistic) & (~oligopoly |~monopoly) & (~oligopoly|~pure_competition))
 
     #Pure competition implies product is not able to have a competitive price and competitive marketing (Marketable)
     #In this case means not Marketable_Level_2
     
-    E.add_constraint(pure_competition>>(~competitive_price&~MarketableLevel(PRODUCT_NAME,2)))
+    E.add_constraint((~pure_competition|~ProfitabilityLevel(PRODUCT_NAME,2))&(~pure_competition|~MarketableLevel(PRODUCT_NAME,2)))
 
-    #Monopolistic competition is a market involves of innovators, when everyone tries to be different no one is too different
+    #Monopolistic competition is a market involves of innovators, when everyone tries to be different no one is different
 
-    E.add_constraint(monopolistic>>(~InnovationLevel(PRODUCT_NAME, 2)))
+    E.add_constraint((~monopolistic|~InnovationLevel(PRODUCT_NAME, 1))&(~monopolistic|~InnovationLevel(PRODUCT_NAME, 2)))
 
     #Monopoly implies that the market is unique, but price is regulated, so profitable level cannot be 2 and competitive price is set to true
     
-    E.add_constraint(monopoly>>(unique_market&~ProfitabilityLevel(PRODUCT_NAME, 2)&competitive_price))
+    E.add_constraint(~monopoly|unique_market|~ProfitabilityLevel(PRODUCT_NAME, 2)|competitive_price)
 
     #Oligopoly implies that the market is small but also involves with innovators, everyone is given with innovation level of 1 but cannot reach to 2
+    E.add_constraint((~oligopoly|InnovationLevel(PRODUCT_NAME, 1))&(~oligopoly|~InnovationLevel(PRODUCT_NAME, 2)))
 
-    E.add_constraint(oligopoly>>(InnovationLevel(PRODUCT_NAME, 1)&~InnovationLevel(PRODUCT_NAME, 2)))
+def build_theory():
 
-    #competitive price means low revenue means low profit margin means profitable level cannot be 2
-    E.add_constraint(competitive_price>>~ProfitabilityLevel(PRODUCT_NAME, 2))
+    positive_constraints()
 
-    #Seasonal demand implies product is not able to have a competitive price due to everyone else also have a competitive price but doesn't have to market the product
-    #Marketable_Level_1
-    E.add_constraint(seasonal_demand>>(~competitive_price&MarketableLevel(PRODUCT_NAME,1)))
+    negative_constraints()
+
+    env_constraints()
 
 
     return E
 
 if __name__ == "__main__":
 
+    print("Building constraints...")
     T = build_theory()
+    print("Successfully built constraints! Compiling theory ...")
     # Don't compile until you're finished adding all your constraints!
     T = T.compile()
+    print("Theory is compiled!")
     # After compilation (and only after), you can check some of the properties
     # of your model:
     print("\nSatisfiable: %s" % T.satisfiable())
