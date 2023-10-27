@@ -92,8 +92,9 @@ def productProps():
     #assume product is in seasonal_demand, and is a unique product what else does the product need in order to be winnable
     E.add_constraint(seasonal_demand&unique_product)
     
-    #given that product is in pure_competition market:
-    E.add_constraint(pure_competition)
+    #given that product is not in any market:
+    #the program should about the the sequence is not satisfiable.
+    E.add_constraint(~pure_competition&~monopolistic&~monopoly&~oligopoly)
     #***
     
 
@@ -121,7 +122,8 @@ def negative_constraints():
     E.add_constraint(~competitive_price|~ProfitabilityLevel(PRODUCT_NAME, 2))
 
 def env_constraints():
-    #A product can only be in one of the four market types:
+    #A product can only be in exactly one of the four market types:
+    E.add_constraint(pure_competition|monopoly|oligopoly|monopolistic)
     E.add_constraint((~pure_competition | ~monopolistic)&(~pure_competition | ~monopoly) & (~pure_competition | ~oligopoly)) 
     E.add_constraint((~monopolistic |  ~pure_competition) & (~monopolistic | ~monopoly) & (~monopolistic | ~oligopoly))
     E.add_constraint((~monopoly | ~monopolistic) & (~monopoly | ~pure_competition) & (~monopoly |~oligopoly))
