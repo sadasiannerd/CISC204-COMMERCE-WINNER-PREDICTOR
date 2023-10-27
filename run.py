@@ -54,19 +54,36 @@ E.add_constraint(ProfitabilityLevel(PRODUCT_NAME, 1)&MarketableLevel(PRODUCT_NAM
                  |InnovationLevel(PRODUCT_NAME, 2)&MarketableLevel(PRODUCT_NAME,1)&ProfitabilityLevel(PRODUCT_NAME, 1)
                  |ProfitabilityLevel(PRODUCT_NAME, 2)&MarketableLevel(PRODUCT_NAME, 1))
 
+@proposition(E)
+class Property(Hashable):
+    def __init__(self,p_name:str, property: str):
+        self.p_name = p_name
+        self.property = property
+    def __str__(self):
+        return f"{self.p_name} is {self.property}"
+    
+@proposition(E)
+class Market(Hashable):
+    def __init__(self,p_name: str, market: str):
+        self.p_name = p_name
+        self.market = market
+    def __str__(self):
+        return f"{self.p_name} is in market {self.market}"
+
+
 #Market types
-pure_competition = Var(f"{PRODUCT_NAME} is in market Pure Competition")
-monopolistic = Var(f"{PRODUCT_NAME} is in market Monopolistic Competition")
-monopoly = Var(f"{PRODUCT_NAME} is in market Monopoly")
-oligopoly = Var(f"{PRODUCT_NAME} is in market Oligopoly")
+pure_competition = Market(PRODUCT_NAME,"Pure Competition")
+monopolistic = Market(PRODUCT_NAME,"Monopolistic Competition")
+monopoly = Market(PRODUCT_NAME, "Monopoly")
+oligopoly = Market(PRODUCT_NAME, "Oligopoly")
 
 #Other propositions
-seasonal_demand = Var(f"{PRODUCT_NAME} is in seasonal demand")
-competitive_price = Var(f"{PRODUCT_NAME} has a competitive price")
-unique_product = Var(f"{PRODUCT_NAME} is a unique product")
-unique_market = Var(f"{PRODUCT_NAME} is unique in its market")
-credible = Var(f"{PRODUCT_NAME} is credible")
-low_cost = Var(f"{PRODUCT_NAME} is low-cost")
+seasonal_demand = Property(PRODUCT_NAME,"in seasonal demand")
+competitive_price = Property(PRODUCT_NAME, "competitive price")
+unique_product = Property(PRODUCT_NAME, "a unique product")
+unique_market = Property(PRODUCT_NAME, "a product in a unique market")
+credible = Property(PRODUCT_NAME, "credible")
+low_cost = Property(PRODUCT_NAME, "low-cost")
 
 
 #TODO: manually enter other propositions
@@ -79,7 +96,6 @@ def productProps():
     E.add_constraint(pure_competition)
     #***
     
-    return
 
 def positive_constraints():
     #a unique level of 2 means the product has a unique nature and is in a unique market, if it's only true for one of the two then product only has marketable level of 1 (this happens only if the product is in markets/ conditions that allows it to be marketable)
